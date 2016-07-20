@@ -4,10 +4,11 @@
 *
 *   raylib now uses OpenGL 1.1 style functions (rlVertex) that are mapped to selected OpenGL version:
 *       OpenGL 1.1  - Direct map rl* -> gl*
+*       OpenGL 2.1  - Vertex data is stored in VBOs, call rlglDraw() to render
 *       OpenGL 3.3  - Vertex data is stored in VAOs, call rlglDraw() to render
 *       OpenGL ES 2 - Vertex data is stored in VBOs or VAOs (when available), call rlglDraw() to render
 *
-*   Copyright (c) 2014 Ramon Santamaria (@raysan5)
+*   Copyright (c) 2014-2016 Ramon Santamaria (@raysan5)
 *
 *   This software is provided "as-is", without any express or implied warranty. In no event
 *   will the authors be held liable for any damages arising from the use of this software.
@@ -48,7 +49,7 @@
 
 // Choose opengl version here or just define it at compile time: -DGRAPHICS_API_OPENGL_33
 //#define GRAPHICS_API_OPENGL_11     // Only available on PLATFORM_DESKTOP
-//#define GRAPHICS_API_OPENGL_33     // Only available on PLATFORM_DESKTOP or PLATFORM_OCULUS
+//#define GRAPHICS_API_OPENGL_33     // Only available on PLATFORM_DESKTOP and RLGL_OCULUS_SUPPORT
 //#define GRAPHICS_API_OPENGL_ES2    // Only available on PLATFORM_ANDROID or PLATFORM_RPI or PLATFORM_WEB
 
 // Security check in case no GRAPHICS_API_OPENGL_* defined
@@ -218,9 +219,9 @@ typedef enum { OPENGL_11 = 1, OPENGL_21, OPENGL_33, OPENGL_ES_20 } GlVersion;
     // Light type
     typedef struct LightData {
         unsigned int id;        // Light unique id
-        int type;               // Light type: LIGHT_POINT, LIGHT_DIRECTIONAL, LIGHT_SPOT
         bool enabled;           // Light enabled
-        
+        int type;               // Light type: LIGHT_POINT, LIGHT_DIRECTIONAL, LIGHT_SPOT
+
         Vector3 position;       // Light position
         Vector3 target;         // Light target: LIGHT_DIRECTIONAL and LIGHT_SPOT (cone direction target)
         float radius;           // Light attenuation radius light intensity reduced with distance (world distance)
@@ -239,6 +240,19 @@ typedef enum { OPENGL_11 = 1, OPENGL_21, OPENGL_33, OPENGL_ES_20 } GlVersion;
     
     // TraceLog message types
     typedef enum { INFO = 0, ERROR, WARNING, DEBUG, OTHER } TraceLogType;
+    
+    // VR Head Mounted Display devices
+    typedef enum {
+        HMD_DEFAULT_DEVICE = 0,
+        HMD_OCULUS_RIFT_DK2,
+        HMD_OCULUS_RIFT_CV1,
+        HMD_VALVE_HTC_VIVE,
+        HMD_SAMSUNG_GEAR_VR,
+        HMD_GOOGLE_CARDBOARD,
+        HMD_SONY_PLAYSTATION_VR,
+        HMD_RAZER_OSVR,
+        HMD_FOVE_VR,
+    } VrDevice;
 #endif
 
 #ifdef __cplusplus
@@ -298,10 +312,9 @@ int rlGetVersion(void);                         // Returns current OpenGL versio
 //------------------------------------------------------------------------------------
 // Functions Declaration - rlgl functionality
 //------------------------------------------------------------------------------------
-void rlglInit(void);                            // Initialize rlgl (shaders, VAO, VBO...)
+void rlglInit(int width, int height);           // Initialize rlgl (buffers, shaders, textures, states)
 void rlglClose(void);                           // De-init rlgl
 void rlglDraw(void);                            // Draw VAO/VBO
-void rlglInitGraphics(int offsetX, int offsetY, int width, int height);  // Initialize Graphics (OpenGL stuff)
 void rlglLoadExtensions(void *loader);          // Load OpenGL extensions
 
 unsigned int rlglLoadTexture(void *data, int width, int height, int textureFormat, int mipmapCount);    // Load texture in GPU
@@ -351,15 +364,22 @@ Light CreateLight(int type, Vector3 position, Color diffuse);       // Create a 
 void DestroyLight(Light light);                                     // Destroy a light and take it out of the list
 
 void TraceLog(int msgType, const char *text, ...);
-#endif
+float *MatrixToFloat(Matrix mat);
 
-#if defined(RLGL_OCULUS_SUPPORT)
-void InitOculusDevice(void);                // Init Oculus Rift device
-void CloseOculusDevice(void);               // Close Oculus Rift device
-void UpdateOculusTracking(void);            // Update Oculus Rift tracking (position and orientation)
-void SetOculusMatrix(int eye);              // Set internal projection and modelview matrix depending on eyes tracking data
-void BeginOculusDrawing(void);              // Begin Oculus drawing configuration
-void EndOculusDrawing(void);                // End Oculus drawing process (and desktop mirror)
+void InitVrDevice(int vrDevice);            // Init VR device
+void CloseVrDevice(void);                   // Close VR device
+void UpdateVrTracking(void);                // Update VR tracking (position and orientation)
+void BeginVrDrawing(void);                  // Begin VR drawing configuration
+void EndVrDrawing(void);                    // End VR drawing process (and desktop mirror)
+bool IsVrDeviceReady(void);                 // Detect if VR device (or simulator) is ready
+void ToggleVrMode(void);                    // Enable/Disable VR experience (device or simulator)
+
+// Oculus Rift API for direct access the device (no simulator)
+bool InitOculusDevice(void);                // Initialize Oculus device (returns true if success)
+void CloseOculusDevice(void);               // Close Oculus device
+void UpdateOculusTracking(void);            // Update Oculus head position-orientation tracking
+void BeginOculusDrawing(void);              // Setup Oculus buffers for drawing
+void EndOculusDrawing(void);                // Finish Oculus drawing and blit framebuffer to mirror
 #endif
 
 #ifdef __cplusplus

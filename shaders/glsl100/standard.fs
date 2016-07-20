@@ -1,11 +1,11 @@
-#version 330
+#version 100
 
-in vec3 fragPosition;
-in vec2 fragTexCoord;
-in vec4 fragColor;
-in vec3 fragNormal;
+precision mediump float;
 
-out vec4 finalColor;
+varying vec3 fragPosition;
+varying vec2 fragTexCoord;
+varying vec4 fragColor;
+varying vec3 fragNormal;
 
 uniform sampler2D texture0;
 uniform sampler2D texture1;
@@ -34,7 +34,6 @@ struct Light {
 };
 
 const int maxLights = 8;
-uniform int lightsCount;
 uniform Light lights[maxLights];
 
 vec3 CalcPointLight(Light l, vec3 n, vec3 v, float s)
@@ -120,36 +119,32 @@ void main()
     vec3 v = normalize(viewDir);
 
     // Calculate diffuse texture color fetching
-    vec4 texelColor = texture(texture0, fragTexCoord);
+    vec4 texelColor = texture2D(texture0, fragTexCoord);
     vec3 lighting = colAmbient.rgb;
     
     // Calculate normal texture color fetching or set to maximum normal value by default
     if (useNormal == 1)
     {
-        n *= texture(texture1, fragTexCoord).rgb;
+        n *= texture2D(texture1, fragTexCoord).rgb;
         n = normalize(n);
     }
     
     // Calculate specular texture color fetching or set to maximum specular value by default
     float spec = 1.0;
-    if (useSpecular == 1) spec *= normalize(texture(texture2, fragTexCoord).r);
+    if (useSpecular == 1) spec *= normalize(texture2D(texture2, fragTexCoord).r);
     
-    for (int i = 0; i < lightsCount; i++)
+    for (int i = 0; i < maxLights; i++)
     {
         // Check if light is enabled
         if (lights[i].enabled == 1)
         {
             // Calculate lighting based on light type
-            switch (lights[i].type)
-            {
-                case 0: lighting += CalcPointLight(lights[i], n, v, spec); break;
-                case 1: lighting += CalcDirectionalLight(lights[i], n, v, spec); break;
-                case 2: lighting += CalcSpotLight(lights[i], n, v, spec); break;
-                default: break;
-            }
+            if(lights[i].type == 0) lighting += CalcPointLight(lights[i], n, v, spec);
+            else if(lights[i].type == 1) lighting += CalcDirectionalLight(lights[i], n, v, spec);
+            else if(lights[i].type == 2) lighting += CalcSpotLight(lights[i], n, v, spec);
         }
     }
     
     // Calculate final fragment color
-    finalColor = vec4(texelColor.rgb*lighting*colDiffuse.rgb, texelColor.a*colDiffuse.a);
+    gl_FragColor = vec4(texelColor.rgb*lighting*colDiffuse.rgb, texelColor.a*colDiffuse.a);
 }

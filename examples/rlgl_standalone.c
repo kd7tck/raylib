@@ -8,8 +8,14 @@
 *   Compile rlgl module using:
 *   gcc -c rlgl.c -Wall -std=c99 -DRLGL_STANDALONE -DRAYMATH_IMPLEMENTATION -DGRAPHICS_API_OPENGL_33
 *
+*   NOTE: rlgl module requires the following header-only files:
+*       external/glad.h - OpenGL extensions loader (stripped to only required extensions)
+*       shader_standard.h - Standard shader for materials and lighting
+*       shader_distortion.h - Distortion shader for VR
+*       raymath.h - Vector and matrix math functions
+*
 *   Compile example using:
-*   gcc -o $(NAME_PART).exe $(FILE_NAME) rlgl.o -lglfw3 -lopengl32 -lgdi32 -std=c99
+*   gcc -o rlgl_standalone.exe rlgl_standalone.c rlgl.o -lglfw3 -lopengl32 -lgdi32 -std=c99
 *
 *   This example has been created using raylib 1.5 (www.raylib.com)
 *   raylib is licensed under an unmodified zlib/libpng license (View raylib.h for details)
@@ -18,15 +24,12 @@
 *
 ********************************************************************************************/
 
-#include "glad.h"               // Extensions loading library
 #include <GLFW/glfw3.h>         // Windows/Context and inputs management
 
 #define RLGL_STANDALONE
 #include "rlgl.h"               // rlgl library: OpenGL 1.1 immediate-mode style coding
 
-
 #define RED        (Color){ 230, 41, 55, 255 }     // Red
-#define MAROON     (Color){ 190, 33, 55, 255 }     // Maroon
 #define RAYWHITE   (Color){ 245, 245, 245, 255 }   // My own White (raylib logo)
 #define DARKGRAY   (Color){ 80, 80, 80, 255 }      // Dark Gray
 
@@ -51,7 +54,6 @@ int main(void)
     //--------------------------------------------------------------------------------------
     const int screenWidth = 800;
     const int screenHeight = 450;
-    
     
     // GLFW3 Initialization + OpenGL 3.3 Context + Extensions
     //--------------------------------------------------------
@@ -80,33 +82,38 @@ int main(void)
     }
     else TraceLog(INFO, "GLFW3: Window created successfully");
     
+    glfwSetWindowPos(window, 200, 200);
+    
     glfwSetKeyCallback(window, KeyCallback);
     
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
-
-    // Load OpenGL 3.3 extensions
-    if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-    {
-        TraceLog(WARNING, "GLAD: Cannot load OpenGL extensions");
-        return 3;
-    }
-    else TraceLog(INFO, "GLAD: OpenGL extensions loaded successfully");
+    
+    // Load OpenGL 3.3 supported extensions
+    rlglLoadExtensions(glfwGetProcAddress);
     //--------------------------------------------------------
     
-    // Initialize rlgl internal buffers and OpenGL state
-    rlglInit();
-    rlglInitGraphics(0, 0, screenWidth, screenHeight);
-    rlClearColor(245, 245, 245, 255);   // Define clear color
-    rlEnableDepthTest();                // Enable DEPTH_TEST for 3D
-    
-    Vector3 cubePosition = { 0.0f, 0.0f, 0.0f };
+    // Initialize OpenGL context (states and resources)
+    rlglInit(screenWidth, screenHeight);
+
+    // Initialize viewport and internal projection/modelview matrices
+    rlViewport(0, 0, screenWidth, screenHeight);
+    rlMatrixMode(RL_PROJECTION);                        // Switch to PROJECTION matrix
+    rlLoadIdentity();                                   // Reset current matrix (PROJECTION)
+    rlOrtho(0, screenWidth, screenHeight, 0, 0.0f, 1.0f); // Orthographic projection with top-left corner at (0,0)
+    rlMatrixMode(RL_MODELVIEW);                         // Switch back to MODELVIEW matrix
+    rlLoadIdentity();                                   // Reset current matrix (MODELVIEW)
+
+    rlClearColor(245, 245, 245, 255);                   // Define clear color
+    rlEnableDepthTest();                                // Enable DEPTH_TEST for 3D
     
     Camera camera;
     camera.position = (Vector3){ 5.0f, 5.0f, 5.0f };    // Camera position
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };      // Camera looking at point
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
     camera.fovy = 45.0f;                                // Camera field-of-view Y
+    
+    Vector3 cubePosition = { 0.0f, 0.0f, 0.0f };        // Cube default position (center)
     //--------------------------------------------------------------------------------------    
 
     // Main game loop    
@@ -139,7 +146,6 @@ int main(void)
             // Draw '2D' elements in the scene (GUI)
 #define RLGL_CREATE_MATRIX_MANUALLY
 #if defined(RLGL_CREATE_MATRIX_MANUALLY)
-
             matProj = MatrixOrtho(0.0, screenWidth, screenHeight, 0.0, 0.0, 1.0);
             MatrixTranspose(&matProj);
             matView = MatrixIdentity();
@@ -155,7 +161,7 @@ int main(void)
             rlMatrixMode(RL_MODELVIEW);                             // Enable internal modelview matrix
             rlLoadIdentity();                                       // Reset internal modelview matrix
 #endif
-            DrawRectangleV((Vector2){ 10.0f, 10.0f }, (Vector2){ 600.0f, 20.0f }, DARKGRAY);
+            DrawRectangleV((Vector2){ 10.0f, 10.0f }, (Vector2){ 780.0f, 20.0f }, DARKGRAY);
 
             // NOTE: Internal buffers drawing (2D data)
             rlglDraw();
@@ -167,10 +173,10 @@ int main(void)
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
-    rlglClose();                            // Unload rlgl internal buffers and default shader/texture
+    rlglClose();                    // Unload rlgl internal buffers and default shader/texture
     
-    glfwDestroyWindow(window);
-    glfwTerminate();
+    glfwDestroyWindow(window);      // Close window
+    glfwTerminate();                // Free GLFW3 resources
     //--------------------------------------------------------------------------------------
     
     return 0;
