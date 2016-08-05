@@ -1612,9 +1612,7 @@ static void InitGraphicsDevice(int width, int height)
     {
         glfwSwapInterval(1);
         TraceLog(INFO, "Trying to enable VSYNC");
-    }
-
-    //glfwGetFramebufferSize(window, &renderWidth, &renderHeight);    // Get framebuffer size of current window
+    }   
 #endif // defined(PLATFORM_DESKTOP) || defined(PLATFORM_WEB)
 
 #if defined(PLATFORM_ANDROID) || defined(PLATFORM_RPI)
@@ -1765,11 +1763,22 @@ static void InitGraphicsDevice(int width, int height)
 #endif // defined(PLATFORM_ANDROID) || defined(PLATFORM_RPI)
 
     // Initialize OpenGL context (states and resources)
+    // NOTE: screenWidth and screenHeight not used, just stored as globals
     rlglInit(screenWidth, screenHeight);
     
+#ifdef __APPLE__
+    // Get framebuffer size of current window
+    // NOTE: Required to handle HighDPI display correctly on OSX because framebuffer 
+    // is automatically reasized to adapt to new DPI.
+    // When OS does that, it can be detected using GLFW3 callback: glfwSetFramebufferSizeCallback()
+    int fbWidth, fbHeight;
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+    rlViewport(renderOffsetX/2, renderOffsetY/2, fbWidth - renderOffsetX, fbHeight - renderOffsetY);
+#else
     // Initialize screen viewport (area of the screen that you will actually draw to)
     // NOTE: Viewport must be recalculated if screen is resized
     rlViewport(renderOffsetX/2, renderOffsetY/2, renderWidth - renderOffsetX, renderHeight - renderOffsetY);
+#endif
 
     // Initialize internal projection and modelview matrices
     // NOTE: Default to orthographic projection mode with top-left corner at (0,0)
